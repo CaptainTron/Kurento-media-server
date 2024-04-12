@@ -1,4 +1,4 @@
-Myworld Kurento for Node.js
+Kurento video call with Node.js
 Examples on usage of the Kurento Node.js Client.
 
 This project contains a set of simple applications built with JavaScript Kurento Client APIs (kurento-client-js and kurento-utils-js) for [Node.js]:
