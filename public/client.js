@@ -1,6 +1,6 @@
 // import kurento from "kurento-client";
 
-const select = (id) => {return document.getElementById(id)};
+const select = (id) => { return document.getElementById(id) };
 
 let divRoomSelection = select('roomSelection');
 let divMeetingRoom = select('meetingRoom');
@@ -9,7 +9,6 @@ let inputName = select('name');
 let btnRegister = select('register');
 
 // variables
-
 let roomName, userName, participants = {};
 
 let socket = io();
@@ -18,9 +17,9 @@ btnRegister.onclick = () => {
     roomName = inputRoom.value;
     userName = inputName.value;
     console.log('inside btn')
-    if(roomName === '' || userName === ''){
+    if (roomName === '' || userName === '') {
         alert('Room and Name are required')
-    }else {
+    } else {
         let message = {
             event: 'joinRoom',
             userName: userName,
@@ -36,12 +35,11 @@ btnRegister.onclick = () => {
 
 socket.on('message', message => {
     console.log('Message arrived', message.event);
-
-    switch(message.event){
+    switch (message.event) {
         case 'newParticipantArrived':
             receiveVideo(message.userid, message.username);
             break;
-        case 'existingParticipants': 
+        case 'existingParticipants':
             console.log("ExistingUsers: ", message.existingUsers);
             onExistingParticipants(message.userid, message.existingUsers)
             break;
@@ -51,19 +49,14 @@ socket.on('message', message => {
         case 'candidate':
             addIceCandidate(message.userid, message.candidate);
             break;
-
     }
 })
-
-function sendMessage(message){
-    socket.emit('message', message);
-}
 
 function sendMessage(message) {
     socket.emit('message', message);
 }
 
-function receiveVideo(userid, username){
+function receiveVideo(userid, username) {
     let video = document.createElement('video');
     let div = document.createElement('div');
     div.className = 'videoContainer';
@@ -90,15 +83,14 @@ function receiveVideo(userid, username){
     }
 
     user.rtcPeer = kurentoUtils.WebRtcPeer.WebRtcPeerRecvonly(options, err => {
-        if(err){
-            console.error("while creating rtc Peer",err)
+        if (err) {
+            console.error("while creating rtc Peer", err)
         }
-
-        user.rtcPeer.generateOffer(onOffer);
-
+        user.rtcPeer.generateOffer(onOffer)
     })
 
-    function onOffer(err, offer, wp){
+    function onOffer(err, offer, wp) {
+        console.log('onOffer');
         let message = {
             event: 'receiveVideoFrom',
             userid: user.id,
@@ -109,8 +101,8 @@ function receiveVideo(userid, username){
         sendMessage(message);
     }
 
-    function onIceCandidate(candidate, wp){
-        console.log('112');
+    function onIceCandidate(candidate, wp) {
+        console.log('onIceCandidate');
         let message = {
             event: 'candidate',
             userid: user.id,
@@ -123,7 +115,7 @@ function receiveVideo(userid, username){
 }
 
 
-function onExistingParticipants(userid, existingUsers){
+function onExistingParticipants(userid, existingUsers) {
     let video = document.createElement('video');
     let div = document.createElement('div');
     div.className = 'videoContainer';
@@ -149,7 +141,7 @@ function onExistingParticipants(userid, existingUsers){
         video: {
             mandatory: {
                 maxWidth: 320,
-                maxFrameRate: 15, 
+                maxFrameRate: 15,
                 minFrameRate: 15
             }
         }
@@ -162,7 +154,7 @@ function onExistingParticipants(userid, existingUsers){
     }
 
     user.rtcPeer = kurentoUtils.WebRtcPeer.WebRtcPeerSendonly(options, err => {
-        if(err){
+        if (err) {
             console.error(err)
             return
         }
@@ -174,9 +166,9 @@ function onExistingParticipants(userid, existingUsers){
     existingUsers.forEach(element => {
         receiveVideo(element.id, element.name)
     })
-    function onOffer(err, offer, wp){
+    function onOffer(err, offer, wp) {
 
-        if(err) console.log("onOffer", err);
+        if (err) console.log("onOffer", err);
         let message = {
             event: 'receiveVideoFrom',
             userid: user.id,
@@ -187,7 +179,7 @@ function onExistingParticipants(userid, existingUsers){
         sendMessage(message);
     }
 
-    function onIceCandidate(candidate, wp){
+    function onIceCandidate(candidate, wp) {
         console.log('187', roomName)
         let message = {
             event: 'candidate',

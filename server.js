@@ -4,7 +4,6 @@ let http = require('http').Server(app);
 let minimist = require('minimist');
 let io = require('socket.io')(http);
 const kurento = require('kurento-client');
-const { Console } = require('console');
 
 let kurentoClient = null;
 let iceCandidateQueues = {};
@@ -19,7 +18,6 @@ let argv = minimist(process.argv.slice(2), {
     }
 })
 
-
 io.on('connection', socket => {
     console.log("socket client created!")
     socket.on('message', message => {
@@ -33,15 +31,13 @@ io.on('connection', socket => {
                 });
                 break;
             case 'receiveVideoFrom':
-
-                receiveVideoFrom(socket, message.userid, message.roomName, message.sdpOffer, err => {
+                receiveVideoFrom(socket, message.userId, message.roomName, message.sdpOffer, err => {
                     if (err) {
                         console.log(err);
                     }
                 })
                 break;
             case 'candidate':
-               
                 addIceCandidate(socket, message.userid, message.roomName, message.candidate, err => {
                     if (err) {
                         console.log(err);
@@ -51,7 +47,6 @@ io.on('connection', socket => {
         }
     })
 })
-
 
 function joinRoom(socket, username, roomname, callback) {
     console.log("joinRoomHandler");
@@ -70,9 +65,8 @@ function joinRoom(socket, username, roomname, callback) {
                 incomingMedia: {}
             }
 
-            console.log("72");
-            let icecandidateQueue = iceCandidateQueues[user.id];
 
+            let icecandidateQueue = iceCandidateQueues[user.id];
             if (icecandidateQueue) {
                 while (icecandidateQueue.length) {
                     let ice = icecandidateQueue.shift();
@@ -80,19 +74,15 @@ function joinRoom(socket, username, roomname, callback) {
                 }
             }
 
-            user.outgoingMedia.on('IceCandidateFound', event => {
-
+            user.outgoingMedia.on('IceCandidateFound', (event) => {
                 if (event.candidate) {
-                    // let candidate = kurento.register.complexTypes.IceCandidate(event.candidate);
                     socket.emit('message', {
                         event: 'candidate',
                         userid: user.id,
                         candidate: event.candidate
                     })
                 }
-
             })
-            console.log("91");
 
             socket.to(roomname).emit('message', {
                 event: 'newParticipantArrived',
@@ -101,7 +91,6 @@ function joinRoom(socket, username, roomname, callback) {
             })
 
             let existingUsers = [];
-            // console.log("participants: ", myRoom.participants);
             for (let i in myRoom.participants) {
                 if (myRoom.participants[i].id !== user.id) {
                     existingUsers.push({
@@ -110,19 +99,17 @@ function joinRoom(socket, username, roomname, callback) {
                     })
                 }
             }
-
+            console.log("existingParticipants", existingUsers)
             socket.emit('message', {
                 event: 'existingParticipants',
                 existingUsers,
                 userid: user.id
             })
-
             myRoom.participants[user.id] = user;
         } catch (err) {
             console.log("Error occured while creating WebRtcEndpoint")
             return callback(err);
         }
-
     })
 }
 
@@ -140,35 +127,24 @@ async function getKurentoClient(callback) {
 
 async function getRoom(socket, roomname, callback) {
     let myRoom = io.sockets.adapter.rooms.get(roomname) || { length: 0 };
-
     let numClients = myRoom.length;
-
     if (numClients === 0) {
-        console.log("141");
-
-        console.log("//creates room for 1st user")
+        console.log("// creates room for 1st user")
         socket.join(roomname);
         myRoom = io.sockets.adapter.rooms.get(roomname);
-        // console.log(myRoom);
-
         try {
             let err = await getKurentoClient();
-
             if (err) {
-                console.log(err);
+                console.log("Get Kurento Client", err);
             } else {
                 myRoom.pipeline = await kurentoClient.create('MediaPipeline');
-                
                 myRoom.participants = {};
-
                 callback(null, myRoom);
             }
-
         } catch (err) {
             console.log("error occured");
             console.log(err);
         }
-
     } else {
         socket.join(roomname);
         callback(null, myRoom);
@@ -177,23 +153,21 @@ async function getRoom(socket, roomname, callback) {
 
 async function getEndpointForUser(socket, roomname, senderid, callback) {
     let myRoom = io.sockets.adapter.rooms.get(roomname);
-   
     let asker = myRoom.participants[socket.id];
     let sender = myRoom.participants[senderid];
 
     if (asker.id === sender.id) {
+        console.log("Asker.id==sender.id")
         return callback(null, asker.outgoingMedia);
     }
-
     if (asker.incomingMedia[sender.id]) {
         sender.outgoingMedia.connect(asker.incomingMedia[sender.id], err => {
             if (err) return callback(err)
             callback(null, asker.incomingMedia[sender.id])
-
         });
-    } else {
 
-        try{
+    } else {
+        try {
             let incomingMedia = await myRoom.pipeline.create('WebRtcEndpoint');
             asker.incomingMedia[sender.id] = incomingMedia;
 
@@ -205,29 +179,21 @@ async function getEndpointForUser(socket, roomname, senderid, callback) {
                     incomingMedia.addIceCandidate(ice.candidate);
                 }
             }
-
             incomingMedia.on('IceCandidateFound', event => {
-                if(event.candidate){
-                   
+                if (event.candidate) {
                     socket.emit('message', {
                         event: 'candidate',
                         userid: sender.id,
                         candidate: event.candidate
-                    })    
+                    })
                 }
-                
             })
             sender.outgoingMedia.connect(incomingMedia);
-
             return callback(null, incomingMedia);
-
-        }catch(e){
+        } catch (e) {
             console.log("Error occured while creating incoming media client.")
             return callback(e);
         }
-       
-
-     
     }
 }
 
@@ -239,11 +205,6 @@ function receiveVideoFrom(socket, userid, roomName, sdpOffer, callback) {
 
         try {
             const answerSdp = await endpoint.processOffer(sdpOffer);
-
-         
-
-            
-
             socket.emit('message', {
                 event: "receiveVideoAnswer",
                 senderid: userid,
@@ -259,21 +220,18 @@ function receiveVideoFrom(socket, userid, roomName, sdpOffer, callback) {
             console.log("Error Occured while processing offer");
             return callback(err)
         }
-
-       
     })
 }
 
 function addIceCandidate(socket, senderid, roomName, iceCandidate, callback) {
     let myRoom = io.sockets.adapter.rooms.get(roomName)
-    console.log("MyRoom312: ", roomName);
     let user = myRoom ? myRoom.participants[socket.id] : null;
+
     if (user != null) {
         let candidate = kurento.register.complexTypes.IceCandidate(iceCandidate);
         if (senderid === user.id) {
             if (user.outgoingMedia) {
                 user.outgoingMedia.addIceCandidate(candidate);
-
             } else {
                 iceCandidateQueues[user.id].push({ candidate: candidate });
             }
@@ -284,20 +242,17 @@ function addIceCandidate(socket, senderid, roomName, iceCandidate, callback) {
                 if (!iceCandidateQueues[senderid]) {
                     iceCandidateQueues[senderid] = [];
                 }
-
                 iceCandidateQueues[senderid].push({ candidate: candidate })
             }
         }
-
         callback(null);
     } else {
         callback(new Error("addIceCandidate failed"));
     }
 }
 
-
 app.use(express.static('public'));
 
-http.listen(3000, () => {
-    console.log('App is running');
+http.listen(5000, () => {
+    console.log('Express Server is Running....');
 })
